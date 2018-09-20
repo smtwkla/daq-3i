@@ -101,6 +101,14 @@ class ModbusConn:
         else:
             # data arrived, save data in object
             logging.debug(f"Received: {result}")
+
+            # Perform data format decoding
+            # Single, Double, Float, Float R W etc...
+
+            # Perform data conversion
+            #
+
+            # Write value to Channel
             self.channels[chl].write_data(result.registers[0], ts, 0)
 
         pass
