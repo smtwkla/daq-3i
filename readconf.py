@@ -1,9 +1,4 @@
-import configparser
 
-def readconfig():
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-    return config
 
 
 if __name__ == "__main__":

@@ -42,10 +42,11 @@ def getdburl(c):
     return con
 
 def create_tables(engine):
-    from readconf import readconfig
-    c = readconfig()
+    import configparser
+    config = configparser.ConfigParser()
+    config.read('config.ini')
 
-    con = getdburl(c)
+    con = getdburl(config)
     print(con)
     # Create an engine
     engine = create_engine(con)

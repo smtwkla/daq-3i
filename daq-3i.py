@@ -1,7 +1,9 @@
-from readconf import readconfig
 import db_model as db
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import modbus
+import time
+import configparser
 
 
 class EnvDaq3i:
@@ -14,9 +16,12 @@ class EnvDaq3i:
         self.Session = None
 
     def read_conf(self):
-        self.conf = readconfig()
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        self.conf = config
 
     def init_db(self):
+        self.read_conf()
         con = db.getdburl(self.conf)
         print(con)
 
@@ -27,7 +32,7 @@ class EnvDaq3i:
 
 
 env = EnvDaq3i()
-env.read_conf()
+
 env.init_db()
 
 session = env.Session()
@@ -35,4 +40,10 @@ channels = session.query(db.Channels).all()
 
 for c in channels:
     print(c.name)
-
+print("Connecting...")
+bus1 = modbus.ModbusConn("192.168.16.59", 502, 1000)
+print("Connect.")
+while True:
+    res = bus1.read_holding_reg(6, 104, 2)
+    print(res.registers[0]/100)
+    time.sleep(1)
