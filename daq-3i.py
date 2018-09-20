@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 import modbus
 import time
 import configparser
+import logging
 
 
 class EnvDaq3i:
@@ -14,6 +15,8 @@ class EnvDaq3i:
         self.conf = None
         self.engine = None
         self.Session = None
+
+        self.buses = []
 
     def read_conf(self):
         config = configparser.ConfigParser()
@@ -30,20 +33,63 @@ class EnvDaq3i:
 
         self.Session = sessionmaker(bind=self.engine)
 
+    def write_channel_data(self):
+        pass
+
+    def init_logger(self):
+        # Configure Logger
+        l_filename = None
+        l_level = logging.INFO
+        FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
+        logging.basicConfig(format=FORMAT, filename=l_filename, level=l_level)
+
 
 env = EnvDaq3i()
 
+env.init_logger()
 env.init_db()
+#db.create_tables(env.engine)
+#exit()
 
 session = env.Session()
-channels = session.query(db.Channels).all()
 
-for c in channels:
-    print(c.name)
-print("Connecting...")
-bus1 = modbus.ModbusConn("192.168.16.59", 502, 1000)
-print("Connect.")
+buses = session.query(db.Buses).filter_by(enabled=True).all()
+bus1 = None
+
+for bus in buses:
+    logging.info(f"Loading Bus {bus.name} ...")
+    logging.info(f"{bus.address}:{bus.port}, {bus.timeout}")
+    bus1 = modbus.ModbusConn(bus.address, bus.port, bus.timeout)
+    env.buses.append(bus1)
+
+    # Find channels for the current bus
+    channels = session.query(db.Channels).filter_by(bus_id=bus.id).filter_by(enabled=True).all()
+    for chl in channels:
+        logging.info(f"Loading {chl.name} on bus {bus.id}...")
+        str = f"{chl.name}, {chl.id}, {chl.device_id}, {chl.address}, {chl.timing}, {chl.conversion_id}, {chl.func_code}"
+        logging.info(str)
+        bus1.load_channel(chl.name, chl.id, chl.device_id, chl.address, chl.timing, chl.conversion_id, chl.func_code)
+    logging.info(f"{bus.name} has {len(bus1.channels)} channels.")
+logging.info(f"Loaded {len(env.buses)} buses.")
+
+# Loop Through
 while True:
-    res = bus1.read_holding_reg(6, 104, 2)
-    print(res.registers[0]/100)
+
+    # Tick all buses
+    for bus in env.buses:
+        bus.timer_tick()
+
+    # Check all channels for dirty data
+    for bus in env.buses:
+        for ch in bus.channels:
+            if ch.is_dirty:
+                data = db.Channel_Data()
+                data.channel_id = ch.id
+                data.ts = ch.last_read_at
+                data.value = ch.value
+                print(data.value)
+                session.add(data)
+                session.commit()
+                ch.is_dirty = False
     time.sleep(1)
+
