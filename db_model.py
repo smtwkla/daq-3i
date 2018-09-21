@@ -41,11 +41,7 @@ class Conversions(Base):
     name = Column(String(50), nullable=False)
     expr = Column(String(250))
 
-    def calculate(self, in_val):
-        value = in_val
-        # Evaluate Expression
-        ret_val = eval(self.expr)
-        return ret_val
+
 class Channel_Data(Base):
     __tablename__="channel_data"
     id = Column(Integer, primary_key=True)

@@ -68,7 +68,9 @@ for bus in buses:
         logging.info(f"Loading {chl.name} on bus {bus.id}...")
         str = f"{chl.name}, {chl.id}, {chl.device_id}, {chl.address}, {chl.timing}, {chl.conversion_id}, {chl.func_code}"
         logging.info(str)
-        bus1.load_channel(chl.name, chl.id, chl.device_id, chl.address, chl.timing, chl.conversion_id, chl.func_code)
+        bus1.load_channel(chl.name, chl.id, chl.device_id, chl.address, chl.timing, chl.conversion_id, chl.func_code,
+                          chl.conversion.expr)
+
     logging.info(f"{bus.name} has {len(bus1.channels)} channels.")
 logging.info(f"Loaded {len(env.buses)} buses.")
 

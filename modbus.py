@@ -7,9 +7,9 @@ import logging
 ChannelClass - Stores data about one channel  
 """
 
-class ChannelClass:
+class ChannelState:
 
-    def __init__(self, name, id, device_id, address, timing, conversion_id, modbus_fn_code):
+    def __init__(self, name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr):
 
         self.name = name
         self.id = id
@@ -18,6 +18,7 @@ class ChannelClass:
         self.timing = timing
         self.conversion_id = conversion_id
         self.modbus_fn_code = modbus_fn_code
+        self.conversion_expr = conversion_expr
 
         self.value = None
         self.is_dirty = False
@@ -43,6 +44,12 @@ class ChannelClass:
         else:
             return False
 
+    def calculate(self, in_val):
+        x = in_val
+        # Evaluate Expression
+        ret_val = eval(self.conversion_expr)
+        return ret_val
+
 
 """
 ModbusConn - Modbus Connection Class representing a bus  
@@ -59,8 +66,8 @@ class ModbusConn:
     def init_con(self):
         pass
 
-    def load_channel(self, name, id, device_id, address, timing, conversion_id, modbus_fn_code):
-        chl = ChannelClass(name, id, device_id, address, timing, conversion_id, modbus_fn_code)
+    def load_channel(self, name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr):
+        chl = ChannelState(name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr)
         self.channels.append(chl)
 
     def timer_tick(self):
@@ -104,12 +111,14 @@ class ModbusConn:
 
             # Perform data format decoding
             # Single, Double, Float, Float R W etc...
+            value = result.registers[0]
 
             # Perform data conversion
             #
+            value = self.channels[chl].calculate(value)
 
             # Write value to Channel
-            self.channels[chl].write_data(result.registers[0], ts, 0)
+            self.channels[chl].write_data(value, ts, 0)
 
         pass
 
