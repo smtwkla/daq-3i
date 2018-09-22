@@ -6,7 +6,9 @@ import time
 import configparser
 import logging
 
-
+"""
+EnvDaq3i -- Main application App
+"""
 class EnvDaq3i:
 
     def __init__(self):
@@ -43,7 +45,9 @@ class EnvDaq3i:
         FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
         logging.basicConfig(format=FORMAT, filename=l_filename, level=l_level)
 
-
+"""
+Main code entry
+"""
 env = EnvDaq3i()
 
 env.init_logger()

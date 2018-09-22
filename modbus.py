@@ -6,6 +6,8 @@ import logging
 """
 ReadResponse - Return object for Channel Read
 """
+
+
 class ReadResponse:
     def __init__(self):
         self.result = 0
@@ -14,8 +16,21 @@ class ReadResponse:
 
 
 """
+Conversion - Perform conversion
+"""
+
+
+def do_conversion(in_val, expr):
+    x = in_val
+    # Evaluate Expression
+    ret_val = eval(expr)
+    return ret_val
+
+
+"""
 ChannelClass - Stores data about one channel  
 """
+
 
 class ChannelState:
 
@@ -54,16 +69,11 @@ class ChannelState:
         else:
             return False
 
-    def calculate(self, in_val):
-        x = in_val
-        # Evaluate Expression
-        ret_val = eval(self.conversion_expr)
-        return ret_val
-
 
 """
 ModbusConn - Modbus Connection Class representing a bus  
 """
+
 
 class BusCon:
 
@@ -97,7 +107,6 @@ class BusCon:
         ts = datetime.now()
         self.channels[chl].last_read_at = ts
 
-
         # Read Channel value
         if self.protocol == 1:
             res = self.read_modbus_holding_reg(unit, addr, 1)
@@ -123,7 +132,7 @@ class BusCon:
 
             # Perform data conversion
             #
-            value = self.channels[chl].calculate(value)
+            value = do_conversion(value, self.channels[chl].conversion_expr)
 
             # Write value to Channel
             self.channels[chl].write_data(value, ts, 0)
