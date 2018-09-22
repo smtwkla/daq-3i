@@ -1,7 +1,7 @@
 import db_model as db
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import modbus
+import bus
 import time
 import configparser
 import logging
@@ -65,7 +65,7 @@ for bus in buses:
     logging.info(f"{bus.address}:{bus.port}, {bus.timeout}")
 
     if bus.protocol == 1:
-        bus1 = modbus.ModbusCon(bus.address, bus.port, bus.timeout, bus.protocol)
+        bus1 = bus.ModbusCon(bus.address, bus.port, bus.timeout, bus.protocol)
 
     env.buses.append(bus1)
 
