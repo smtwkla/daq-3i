@@ -1,6 +1,7 @@
 from pymodbus.client.sync import ModbusTcpClient
 import pymodbus.exceptions
 from datetime import datetime
+from conversion import do_conversion
 import logging
 
 """
@@ -13,18 +14,6 @@ class ReadResponse:
         self.result = 0
         self.response = None
         self.exception = None
-
-
-"""
-Conversion - Perform conversion
-"""
-
-
-def do_conversion(in_val, expr):
-    x = in_val
-    # Evaluate Expression
-    ret_val = eval(expr)
-    return ret_val
 
 
 """
