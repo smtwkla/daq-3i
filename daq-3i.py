@@ -1,7 +1,7 @@
 import db_model as db
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import bus
+import bus as Bus
 import time
 import configparser
 import logging
@@ -9,6 +9,8 @@ import logging
 """
 EnvDaq3i -- Main application App
 """
+
+
 class EnvDaq3i:
 
     def __init__(self):
@@ -65,7 +67,7 @@ for bus in buses:
     logging.info(f"{bus.address}:{bus.port}, {bus.timeout}")
 
     if bus.protocol == 1:
-        bus1 = bus.ModbusCon(bus.address, bus.port, bus.timeout, bus.protocol)
+        bus1 = Bus.ModbusCon(bus.address, bus.port, bus.timeout, bus.protocol)
 
     env.buses.append(bus1)
 

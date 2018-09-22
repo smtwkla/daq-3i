@@ -2,11 +2,10 @@
 Conversion - Perform conversion
 """
 from asteval import Interpreter
-aeval = Interpreter()
 
 
 def do_conversion(in_val, expr):
-
+    aeval = Interpreter()
     try:
         aeval.symtable['x'] = in_val
         aeval(expr)
@@ -14,5 +13,3 @@ def do_conversion(in_val, expr):
     except (KeyError, SyntaxError):
         value = None
     return value
-
-print(do_conversion(1000, "Value=/x*100/2.7"))
