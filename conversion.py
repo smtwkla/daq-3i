@@ -10,6 +10,7 @@ def do_conversion(in_val, expr):
         aeval.symtable['x'] = in_val
         aeval(expr)
         value = aeval.symtable['Value']
-    except (KeyError, SyntaxError):
+    except (KeyError, SyntaxError) as e:
+        print(str(e))
         value = None
     return value
