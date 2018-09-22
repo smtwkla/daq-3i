@@ -63,7 +63,10 @@ bus1 = None
 for bus in buses:
     logging.info(f"Loading Bus {bus.name} with protocol {bus.protocol}...")
     logging.info(f"{bus.address}:{bus.port}, {bus.timeout}")
-    bus1 = modbus.BusCon(bus.address, bus.port, bus.timeout, bus.protocol)
+
+    if bus.protocol == 1:
+        bus1 = modbus.ModbusCon(bus.address, bus.port, bus.timeout, bus.protocol)
+
     env.buses.append(bus1)
 
     # Find channels for the current bus

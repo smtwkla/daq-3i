@@ -45,7 +45,7 @@ class ChannelState:
         self.last_read_at = ts
         self.is_dirty = True
 
-    def read_due(self):
+    def check_read_due(self):
 
         # if last_read + timing > now,
         now = datetime.now()
@@ -60,7 +60,7 @@ class ChannelState:
 
 
 """
-ModbusConn - Modbus Connection Class representing a bus  
+BusCon - Generic Connection Class representing a bus  
 """
 
 
@@ -85,7 +85,7 @@ class BusCon:
         ch = 0
         ln = len(self.channels)
         while ch < ln:
-            if self.channels[ch].read_due():
+            if self.channels[ch].check_read_due():
                 self.read_channel(ch)
             ch += 1
 
@@ -98,7 +98,7 @@ class BusCon:
 
         # Read Channel value
         if self.protocol == 1:
-            res = self.read_modbus_holding_reg(unit, addr, 1)
+            res = self.read_holding_reg(unit, addr, 1)
         else:
             raise Exception(f"Error: Protocol unknown: {self.protocol}")
 
@@ -128,7 +128,18 @@ class BusCon:
 
         pass
 
-    def read_modbus_holding_reg(self, unit, addr, count):
+    def read_holding_reg(self, *args):
+        print("Base method called: read_holding_reg")
+        pass
+
+
+"""
+ModbusMixin - Mixin for Modbus specific functionality
+"""
+
+
+class ModbusMixin:
+    def read_holding_reg(self, unit, addr, count):
         logging.debug(f"Reading {unit} {addr} {count}")
 
         ret = ReadResponse()
@@ -145,3 +156,11 @@ class BusCon:
 
         return ret
 
+
+"""
+ModbusCon
+"""
+
+
+class ModbusCon(ModbusMixin, BusCon):
+    pass
