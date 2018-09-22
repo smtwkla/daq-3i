@@ -4,12 +4,6 @@ Conversion - Perform conversion
 from asteval import Interpreter
 aeval = Interpreter()
 
-def do_conversion1(in_val, expr):
-    x = in_val
-    # Evaluate Expression
-    ret_val = eval(expr)
-    return ret_val
-
 
 def do_conversion(in_val, expr):
 
