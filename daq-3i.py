@@ -77,8 +77,14 @@ for bus in buses:
         logging.info(f"Loading {chl.name} on bus {bus.id}...")
         str = f"{chl.name}, {chl.id}, {chl.device_id}, {chl.address}, {chl.timing}, {chl.conversion_id}, {chl.func_code}"
         logging.info(str)
+
+        if chl.conversion_id == 0 or chl.conversion_id is None:
+            conv_exp = None
+        else:
+            conv_exp = chl.conversion.expr
+
         bus1.load_channel(chl.name, chl.id, chl.device_id, chl.address, chl.timing, chl.conversion_id, chl.func_code,
-                          chl.conversion.expr)
+                          conv_exp)
 
     logging.info(f"{bus.name} has {len(bus1.channels)} channels.")
 logging.info(f"Loaded {len(env.buses)} buses.")

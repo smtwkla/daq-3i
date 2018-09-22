@@ -121,7 +121,8 @@ class BusCon:
 
             # Perform data conversion
             #
-            value = do_conversion(value, self.channels[chl].conversion_expr)
+            if self.channels[chl].conversion_expr is not None:
+                value = do_conversion(value, self.channels[chl].conversion_expr)
 
             # Write value to Channel
             self.channels[chl].write_data(value, ts, 0)
