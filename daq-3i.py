@@ -57,9 +57,9 @@ buses = session.query(db.Buses).filter_by(enabled=True).all()
 bus1 = None
 
 for bus in buses:
-    logging.info(f"Loading Bus {bus.name} ...")
+    logging.info(f"Loading Bus {bus.name} with protocol {bus.protocol}...")
     logging.info(f"{bus.address}:{bus.port}, {bus.timeout}")
-    bus1 = modbus.ModbusConn(bus.address, bus.port, bus.timeout)
+    bus1 = modbus.BusCon(bus.address, bus.port, bus.timeout, bus.protocol)
     env.buses.append(bus1)
 
     # Find channels for the current bus

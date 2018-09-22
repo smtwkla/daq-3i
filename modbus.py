@@ -4,6 +4,16 @@ from datetime import datetime
 import logging
 
 """
+ReadResponse - Return object for Channel Read
+"""
+class ReadResponse:
+    def __init__(self):
+        self.result = 0
+        self.response = None
+        self.exception = None
+
+
+"""
 ChannelClass - Stores data about one channel  
 """
 
@@ -55,13 +65,14 @@ class ChannelState:
 ModbusConn - Modbus Connection Class representing a bus  
 """
 
-class ModbusConn:
+class BusCon:
 
-    def __init__(self, host, port, timeout):
+    def __init__(self, host, port, timeout, protocol):
         self.host = host
         self.port = port
         self.timeout = timeout
         self.channels = []
+        self.protocol = protocol
 
     def init_con(self):
         pass
@@ -83,35 +94,32 @@ class ModbusConn:
 
         unit = self.channels[chl].device_id
         addr = self.channels[chl].address
-        self.channels[chl].last_read_at = datetime.now()
+        ts = datetime.now()
+        self.channels[chl].last_read_at = ts
 
-        err = True
-        result = None
-        try:
 
-            # Read Channel value
-            result = self.read_holding_reg(unit, addr, 1)
-            ts = datetime.now()
-            if result.isError():
-                err = True
-            else:
-                err = False
-        except pymodbus.exceptions.ModbusException as e:
-            # If timeout, mark error
-            err = True
-            self.channels[chl].last_status = -1
-            logging.error (f"Exception reading: {e.string} ")
+        # Read Channel value
+        if self.protocol == 1:
+            res = self.read_modbus_holding_reg(unit, addr, 1)
+        else:
+            raise Exception(f"Error: Protocol unknown: {self.protocol}")
 
-        if err:
+        self.channels[chl].last_status = -1
+
+        if res.result == -1:
             logging.error(f"Error reading channel {chl}")
-            pass
+
+            if res.exception is not None:
+                logging.error(f"Exception: {res.exception.string} ")
+
         else:
             # data arrived, save data in object
-            logging.debug(f"Received: {result}")
+
+            self.channels[chl].last_status = 0
 
             # Perform data format decoding
             # Single, Double, Float, Float R W etc...
-            value = result.registers[0]
+            value = res.response.registers[0]
 
             # Perform data conversion
             #
@@ -122,9 +130,20 @@ class ModbusConn:
 
         pass
 
-    def read_holding_reg(self, unit, addr, count):
+    def read_modbus_holding_reg(self, unit, addr, count):
         logging.debug(f"Reading {unit} {addr} {count}")
-        with ModbusTcpClient(host=self.host, port=self.port, timeout=self.timeout) as client:
-            result = client.read_holding_registers(address=addr, count=count, unit=unit)
-            client.close()
-        return result
+
+        ret = ReadResponse()
+
+        try:
+            with ModbusTcpClient(host=self.host, port=self.port, timeout=self.timeout) as client:
+                ret.response = client.read_holding_registers(address=addr, count=count, unit=unit)
+                client.close()
+                if ret.response.isError():
+                    ret.result = -1
+        except pymodbus.exceptions.ModbusException as e:
+            ret.exception = e
+            ret.result = -1
+
+        return ret
+
