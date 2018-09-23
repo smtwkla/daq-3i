@@ -11,7 +11,7 @@ ChannelClass - Stores data about one channel
 
 class ChannelState:
 
-    def __init__(self, name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr):
+    def __init__(self, name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr, format):
 
         self.name = name
         self.id = id
@@ -21,6 +21,7 @@ class ChannelState:
         self.conversion_id = conversion_id
         self.modbus_fn_code = modbus_fn_code
         self.conversion_expr = conversion_expr
+        self.format = format
 
         self.value = None
         self.is_dirty = False
@@ -64,8 +65,10 @@ class BusCon:
     def init_con(self):
         pass
 
-    def load_channel(self, name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr):
-        chl = ChannelState(name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr)
+    def load_channel(self, name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr,
+                     format):
+        chl = ChannelState(name, id, device_id, address, timing, conversion_id, modbus_fn_code, conversion_expr,
+                           format)
         self.channels.append(chl)
 
     def timer_tick(self):
@@ -85,10 +88,8 @@ class BusCon:
         self.channels[chl].last_read_at = ts
 
         # Read Channel value
-        if self.protocol == 1:
-            res = self.read_holding_reg(unit, addr, 1)
-        else:
-            raise Exception(f"Error: Protocol unknown: {self.protocol}")
+
+        res = self.read_register(self.channels[chl])
 
         self.channels[chl].last_status = -1
 
@@ -117,7 +118,7 @@ class BusCon:
 
         pass
 
-    def read_holding_reg(self, *args):
+    def read_register(self, *args):
         print("Base method called: read_holding_reg")
         pass
 

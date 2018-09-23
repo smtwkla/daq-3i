@@ -18,6 +18,10 @@ MODBUS_FLOAT_RBYTES = 9
 MODBUS_FLOAT_RWORDS = 10
 MODBUS_FLOAT_RSKIP2 = 11
 
+FORMAT_LENGTH = {MODBUS_SINT16: 1, MODBUS_SINT32: 1, MODBUS_SINT32_RWORDS: 2, MODBUS_SKIP2: 3,
+                 MODBUS_UINT16: 4, MODBUS_UINT32: 5, MODBUS_UINT32_RWORDS: 6, MODBUS_FLOAT: 7,
+                 MODBUS_FLOAT_SKIP2: 8, MODBUS_FLOAT_RBYTES: 9, MODBUS_FLOAT_RWORDS: 10,
+                 MODBUS_FLOAT_RSKIP2: 11}
 
 """
 ModbusMixin - Mixin for Modbus specific functionality
@@ -25,15 +29,19 @@ ModbusMixin - Mixin for Modbus specific functionality
 
 
 class ModbusMixin:
-    def read_holding_reg(self, unit, addr, count):
-        logging.debug(f"Reading {unit} {addr} {count}")
+    def read_register(self, chl):
+        logging.debug(f"Reading {chl.device_id}")
 
         ret = buscommon.ReadResponse()
 
         try:
             with ModbusTcpClient(host=self.host, port=self.port, timeout=self.timeout) as client:
-                ret.response = client.read_holding_registers(address=addr, count=count, unit=unit)
-                client.close()
+                if chl.modbus_fn_code == MODBUS_FUNC_READHOLDING:
+                    count = FORMAT_LENGTH[chl.format]
+                    ret.response = client.read_holding_registers(address=chl.address, count=count, unit=chl.device_id)
+                    client.close()
+                else:
+                    raise pymodbus.exceptions.ModbusException("Function code not yet implemented.")
                 if ret.response.isError():
                     ret.result = -1
         except pymodbus.exceptions.ModbusException as e:

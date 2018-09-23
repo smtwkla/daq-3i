@@ -84,7 +84,7 @@ for bus in buses:
             conv_exp = chl.conversion.expr
 
         bus1.load_channel(chl.name, chl.id, chl.device_id, chl.address, chl.timing, chl.conversion_id, chl.func_code,
-                          conv_exp)
+                          conv_exp, chl.format_code)
 
     logging.info(f"{bus.name} has {len(bus1.channels)} channels.")
 logging.info(f"Loaded {len(env.buses)} buses.")
