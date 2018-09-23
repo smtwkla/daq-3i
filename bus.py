@@ -106,7 +106,7 @@ class BusCon:
 
             # Perform data format decoding
             # Single, Double, Float, Float R W etc...
-            value = res.response.registers[0]
+            value = self.decode_data_format(self.channels[chl], res)
 
             # Perform data conversion
             #
@@ -120,6 +120,10 @@ class BusCon:
 
     def read_register(self, *args):
         print("Base method called: read_holding_reg")
+        pass
+
+    def decode_data_format(self, *args):
+        print("Base method called: decode_data_format")
         pass
 
 

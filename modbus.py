@@ -49,3 +49,15 @@ class ModbusMixin:
             ret.result = -1
 
         return ret
+
+    def decode_data_format(self, chl, res):
+
+        value = None
+
+        if chl.format == MODBUS_UINT16:
+            value = res.response.registers[0]
+
+        if chl.format == MODBUS_SINT16:
+            value = buscommon.getSignedNumber(res.response.registers[0], 16)
+
+        return value
