@@ -1,19 +1,7 @@
-from pymodbus.client.sync import ModbusTcpClient
-import pymodbus.exceptions
 from datetime import datetime
 from conversion import do_conversion
 import logging
-
-"""
-ReadResponse - Return object for Channel Read
-"""
-
-
-class ReadResponse:
-    def __init__(self):
-        self.result = 0
-        self.response = None
-        self.exception = None
+import modbus
 
 
 """
@@ -134,34 +122,11 @@ class BusCon:
         pass
 
 
-"""
-ModbusMixin - Mixin for Modbus specific functionality
-"""
-
-
-class ModbusMixin:
-    def read_holding_reg(self, unit, addr, count):
-        logging.debug(f"Reading {unit} {addr} {count}")
-
-        ret = ReadResponse()
-
-        try:
-            with ModbusTcpClient(host=self.host, port=self.port, timeout=self.timeout) as client:
-                ret.response = client.read_holding_registers(address=addr, count=count, unit=unit)
-                client.close()
-                if ret.response.isError():
-                    ret.result = -1
-        except pymodbus.exceptions.ModbusException as e:
-            ret.exception = e
-            ret.result = -1
-
-        return ret
-
 
 """
 ModbusCon
 """
 
 
-class ModbusCon(ModbusMixin, BusCon):
+class ModbusCon(modbus.ModbusMixin, BusCon):
     pass
