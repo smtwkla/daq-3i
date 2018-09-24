@@ -82,8 +82,6 @@ class BusCon:
 
     def read_channel(self, chl):
 
-        unit = self.channels[chl].device_id
-        addr = self.channels[chl].address
         ts = datetime.now()
         self.channels[chl].last_read_at = ts
 
