@@ -1,5 +1,6 @@
 import db_model as db
 from sqlalchemy import create_engine
+from sqlalchemy.exc import  SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 import bus as Bus
 import time
@@ -50,6 +51,15 @@ class EnvDaq3i:
 """
 Main code entry
 """
+
+# Configure logging:
+
+FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
+l_level = logging.INFO
+l_filename = "daq-3i.log"
+
+logging.basicConfig(format=FORMAT, filename=l_filename, level=l_level)
+
 env = EnvDaq3i()
 
 env.init_logger()
@@ -86,7 +96,9 @@ for bus in buses:
         bus1.load_channel(chl.name, chl.id, chl.device_id, chl.address, chl.timing, chl.conversion_id, chl.func_code,
                           conv_exp, chl.format_code)
 
-    logging.info(f"{bus.name} has {len(bus1.channels)} channels.")
+session.close()
+
+logging.info(f"{bus.name} has {len(bus1.channels)} channels.")
 logging.info(f"Loaded {len(env.buses)} buses.")
 
 # Loop Through
@@ -100,13 +112,18 @@ while True:
     for bus in env.buses:
         for ch in bus.channels:
             if ch.is_dirty:
-                data = db.Channel_Data()
-                data.channel_id = ch.id
-                data.ts = ch.last_read_at
-                data.value = ch.value
-                print(data.value)
-                session.add(data)
-                session.commit()
-                ch.is_dirty = False
+                session = env.Session()
+                try:
+                    data = db.Channel_Data()
+                    data.channel_id = ch.id
+                    data.ts = ch.last_read_at
+                    data.value = ch.value
+                    print(data.value)
+                    session.add(data)
+                    session.commit()
+                    ch.is_dirty = False
+                except SQLAlchemyError as e:
+                    session.rollback()
+                    logging.critical(e.message)
     time.sleep(1)
 
