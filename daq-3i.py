@@ -124,6 +124,6 @@ while True:
                     ch.is_dirty = False
                 except SQLAlchemyError as e:
                     session.rollback()
-                    logging.critical(e.message)
+                    logging.critical("Error: {0}".format(e))
     time.sleep(1)
 
