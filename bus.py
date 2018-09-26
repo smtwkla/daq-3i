@@ -3,6 +3,7 @@ from conversion import do_conversion
 import logging
 import modbus
 
+MODBUSTCP_PROTOCOL = 1
 
 """
 ChannelClass - Stores data about one channel  

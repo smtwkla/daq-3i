@@ -6,6 +6,7 @@ import bus as Bus
 import time
 import configparser
 import logging
+import datetime
 
 """
 EnvDaq3i -- Main application App
@@ -43,7 +44,7 @@ class EnvDaq3i:
 
     def init_logger(self):
         # Configure Logger
-        l_filename = None
+        l_filename = "daq-3i.log" # None
         l_level = logging.INFO
         FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
         logging.basicConfig(format=FORMAT, filename=l_filename, level=l_level)
@@ -54,39 +55,36 @@ Main code entry
 
 # Configure logging:
 
-FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
-l_level = logging.INFO
-l_filename = "daq-3i.log"
-
-logging.basicConfig(format=FORMAT, filename=l_filename, level=l_level)
 
 env = EnvDaq3i()
 
 env.init_logger()
+logging.info("daq-3i Starting... Init DB...")
 env.init_db()
 #db.create_tables(env.engine)
 #exit()
 
-session = env.Session()
 
+logging.info("Loading Buses...")
+session = env.Session()
 buses = session.query(db.Buses).filter_by(enabled=True).all()
+
 bus1 = None
 
 for bus in buses:
     logging.info(f"Loading Bus {bus.name} with protocol {bus.protocol}...")
     logging.info(f"{bus.address}:{bus.port}, {bus.timeout}")
 
-    if bus.protocol == 1:
+    if bus.protocol == Bus.MODBUSTCP_PROTOCOL:
         bus1 = Bus.ModbusCon(bus.address, bus.port, bus.timeout, bus.protocol)
 
     env.buses.append(bus1)
 
     # Find channels for the current bus
     channels = session.query(db.Channels).filter_by(bus_id=bus.id).filter_by(enabled=True).all()
+
     for chl in channels:
         logging.info(f"Loading {chl.name} on bus {bus.id}...")
-        str = f"{chl.name}, {chl.id}, {chl.device_id}, {chl.address}, {chl.timing}, {chl.conversion_id}, {chl.func_code}"
-        logging.info(str)
 
         if chl.conversion_id == 0 or chl.conversion_id is None:
             conv_exp = None
@@ -96,15 +94,18 @@ for bus in buses:
         bus1.load_channel(chl.name, chl.id, chl.device_id, chl.address, chl.timing, chl.conversion_id, chl.func_code,
                           conv_exp, chl.format_code)
 
+    logging.info(f"Bus {bus.name} has {len(bus1.channels)} channels.")
+
 session.close()
 
-logging.info(f"{bus.name} has {len(bus1.channels)} channels.")
 logging.info(f"Loaded {len(env.buses)} buses.")
-
+logging.info("Starting data acquisition loop...")
 # Loop Through
 while True:
 
     # Tick all buses
+    last_tick = datetime.datetime.now()
+
     for bus in env.buses:
         bus.timer_tick()
 
@@ -125,5 +126,12 @@ while True:
                 except SQLAlchemyError as e:
                     session.rollback()
                     logging.critical("Error: {0}".format(e))
-    time.sleep(1)
+
+    # time_to_sleep = 1 second  - (now - last_tick)
+    elapsed = (datetime.datetime.now() - last_tick).total_seconds()
+
+    if elapsed <= 1:
+        time.sleep(1-elapsed)
+    else:
+        pass  # we missed the bus already, lets not wait.
 
