@@ -56,6 +56,7 @@ def getdburl(c):
     return con
 
 def create_tables(engine):
+
     import configparser
     config = configparser.ConfigParser()
     config.read('config.ini')
@@ -66,4 +67,5 @@ def create_tables(engine):
 
     # Create all tables in the engine.
     Base.metadata.create_all(engine)
+
 
