@@ -56,7 +56,7 @@ class ModbusMixin:
     def decode_data_format(self, chl, res):
 
         value = None
-        byteorder = Endian.Little
+        byteorder = Endian.Big
         wordorder = Endian.Little
 
         if chl.format == MODBUS_SINT32_RWORDS:
