@@ -44,7 +44,7 @@ class EnvDaq3i:
 
     def init_logger(self):
         # Configure Logger
-        l_filename = "daq-3i.log" # None
+        l_filename = None  # "daq-3i.log" #
         l_level = logging.INFO
         FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
         logging.basicConfig(format=FORMAT, filename=l_filename, level=l_level)

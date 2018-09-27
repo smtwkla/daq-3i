@@ -59,9 +59,56 @@ class ModbusMixin:
         byteorder = Endian.Big
         wordorder = Endian.Little
 
+
+        if chl.format == MODBUS_UINT16:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_SINT16:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_UINT32:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_UINT32_RWORDS:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_SINT32:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
         if chl.format == MODBUS_SINT32_RWORDS:
-            byteorder = Endian.Little
-            wordorder = Endian.Big
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_SKIP2:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_FLOAT:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_FLOAT_SKIP2:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_FLOAT_RBYTES:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_FLOAT_RWORDS:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+        if chl.format == MODBUS_FLOAT_RSKIP2:
+            byteorder = Endian.Big
+            wordorder = Endian.Little
+
+
 
         decoder = BinaryPayloadDecoder.fromRegisters(res.response.registers, byteorder=byteorder, wordorder=wordorder)
 
