@@ -49,7 +49,6 @@ class Channel_Data(Base):
     channel_id = Column(Integer, ForeignKey('channels.id'), nullable=False)
     ts = Column(DateTime, nullable=False)
     value = Column(Numeric(25, 6))
-    eng_unit = Column(String(15))
 
 
 class Daq_Status(Base):
