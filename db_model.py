@@ -51,6 +51,14 @@ class Channel_Data(Base):
     eng_unit = Column(String(15))
 
 
+class Daq_Status(Base):
+    __tablename__= "daq_status"
+    id = Column(Integer, primary_key=True)
+    parameter = Column(String(25), nullable=False, unique=True)
+    status = Column(Integer)
+    ts = Column(DateTime)
+
+
 def getdburl(c):
     con = f"{c['db']['dbdialect']}://{c['db']['user']}:{c['db']['pass']}@{c['db']['host']}:{c['db']['port']}/{c['db']['database']}"
     return con
