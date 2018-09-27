@@ -1,16 +1,21 @@
 import db_model as db
 from sqlalchemy import create_engine
-from sqlalchemy.exc import  SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 import bus as Bus
 import time
 import configparser
 import logging
 import datetime
+import daq_status
+
 
 """
 EnvDaq3i -- Main application App
 """
+
+PULSE_SECONDS = 15
+PULSE_PARAMETER = "daq-3i"
 
 
 class EnvDaq3i:
@@ -21,8 +26,9 @@ class EnvDaq3i:
         self.conf = None
         self.engine = None
         self.Session = None
-
+        self.daq_stat = None
         self.buses = []
+        self.pulse_timer = 0
 
     def read_conf(self):
         config = configparser.ConfigParser()
@@ -44,10 +50,18 @@ class EnvDaq3i:
 
     def init_logger(self):
         # Configure Logger
+        l_filename = None #"daq-3i.log" # None
         l_filename = None  # "daq-3i.log" #
         l_level = logging.INFO
         FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
         logging.basicConfig(format=FORMAT, filename=l_filename, level=l_level)
+
+
+    def prep_daq_status(self):
+
+        logging.info("Preparing Daq Status...")
+        self.daq_stat = daq_status.DaqStatus(self)
+        self.daq_stat.flush_parameters()
 
     def load_buses(self):
 
@@ -86,9 +100,9 @@ class EnvDaq3i:
         bus_session.close()
 
     def loop(self):
+
         # Loop Through
         while True:
-
             # Tick all buses
             last_tick = datetime.datetime.now()
 
@@ -108,10 +122,14 @@ class EnvDaq3i:
                             print(data.value)
                             session.add(data)
                             session.commit()
+                            session.close()
                             ch.is_dirty = False
+                            self.daq_stat.update_parameter("CHL: %d" % ch.id, daq_status.STATUS_OK)
+
                         except SQLAlchemyError as e:
                             session.rollback()
                             logging.critical("Error: {0}".format(e))
+            self.pulse()
 
             # time_to_sleep = 1 second  - (now - last_tick)
             elapsed = (datetime.datetime.now() - last_tick).total_seconds()
@@ -121,26 +139,33 @@ class EnvDaq3i:
             else:
                 pass  # we missed the bus already, lets not wait.
 
+    def pulse(self):
+
+        self.pulse_timer += 1
+        if self.pulse_timer >= PULSE_SECONDS:
+            self.pulse_timer = 0
+            self.daq_stat.update_parameter(PULSE_PARAMETER, 1)
+
+    def load(self):
+        self.init_logger()
+        logging.info("daq-3i Starting... Init DB...")
+        self.init_db()
+        self.prep_daq_status()
+        self.load_buses()
+        # db.create_tables(env.engine)
+        # exit()
+        logging.info(f"Loaded {len(env.buses)} buses.")
+
+        # write status - 1 = Running
+        self.daq_stat.update_parameter(PULSE_PARAMETER, daq_status.STATUS_RUNNING)
+
 
 """
 Main code entry
 """
 
-# Configure logging:
-
-
 env = EnvDaq3i()
-
-env.init_logger()
-logging.info("daq-3i Starting... Init DB...")
-env.init_db()
-#db.create_tables(env.engine)
-#exit()
-
-env.load_buses()
-
-logging.info(f"Loaded {len(env.buses)} buses.")
-logging.info("Starting data acquisition loop...")
-
-
+env.load()
 env.loop()
+
+logging.info("Starting data acquisition loop...")
