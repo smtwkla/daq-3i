@@ -20,11 +20,13 @@ MODBUS_FLOAT_SKIP2 = 8
 MODBUS_FLOAT_RBYTES = 9
 MODBUS_FLOAT_RWORDS = 10
 MODBUS_FLOAT_RSKIP2 = 11
+MODBUS_ABB_REAL32_U = 12
+MODBUS_ABB_REAL32_S = 13
 
 FORMAT_LENGTH = {MODBUS_SINT16: 1, MODBUS_SINT32: 2, MODBUS_SINT32_RWORDS: 2, MODBUS_SKIP2: 3,
                  MODBUS_UINT16: 4, MODBUS_UINT32: 5, MODBUS_UINT32_RWORDS: 6, MODBUS_FLOAT: 7,
                  MODBUS_FLOAT_SKIP2: 8, MODBUS_FLOAT_RBYTES: 9, MODBUS_FLOAT_RWORDS: 10,
-                 MODBUS_FLOAT_RSKIP2: 11}
+                 MODBUS_FLOAT_RSKIP2: 11, MODBUS_ABB_REAL32_U: 2, MODBUS_ABB_REAL32_S: 2}
 
 """
 ModbusMixin - Mixin for Modbus specific functionality
@@ -108,7 +110,9 @@ class ModbusMixin:
             byteorder = Endian.Big
             wordorder = Endian.Little
 
-
+        if chl.format == MODBUS_ABB_REAL32_U or chl.format == MODBUS_ABB_REAL32_S:
+            byteorder = Endian.Big
+            wordorder = Endian.Big
 
         decoder = BinaryPayloadDecoder.fromRegisters(res.response.registers, byteorder=byteorder, wordorder=wordorder)
 
@@ -148,6 +152,14 @@ class ModbusMixin:
 
         if chl.format == MODBUS_FLOAT_RSKIP2:
             pass
+
+        if chl.format == MODBUS_ABB_REAL32_U:
+            value = decoder.decode_16bit_uint()
+            # print("Reg 1 : %d" % res.response.registers[0])
+            # print("Reg 2 : %d" % res.response.registers[1])
+
+        if chl.format == MODBUS_ABB_REAL32_S:
+            value = decoder.decode_16bit_int()
 
         # decoder.decode_bits()
         return value
