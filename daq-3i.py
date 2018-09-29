@@ -164,13 +164,37 @@ class EnvDaq3i:
                     self.l_filename = i[1]
                 else:
                     logging.critical("Error : Unknown command line switch " + i[0])
-                    self.quit_err()
+                    self.quit(-1)
             for i in flags:
                 if "CLEAR_HISTORY" == i.strip().upper():
                     self.action_clear_history = True
                 else:
                     logging.critical("Error : Unknown command line flag " + i)
-                    self.quit_err()
+                    self.quit(-1)
+
+    def process_history(self):
+        # start seperate thread to delete old history files
+        #
+        # count = SELECT COUNT(id) FROM Channel_Data WHERE Channel_id = Channel
+
+        # DELETE FROM Channel_Data WHERE id IN (SELECT id FROM Channel_Data WHERE Channel_id = Channel ORDER BY id ASC LIMIT to_del)
+
+        session = self.Session()
+
+        # Get All Channels
+        all_chl = session.query(db.Channels).all()
+
+        for chl in all_chl:
+            count = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).count()
+            history_len = session.query(db.Channels).filter(db.Channels.id == chl.id).one().history_len
+            to_del = count - history_len
+            print("Channel %s : History Len: %d." % (chl.name, history_len))
+            if to_del > 0:
+                print("To delete %d of a total of %d records." % (to_del, count))
+                res = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).order_by(db.Channel_Data.id.asc()).limit(to_del)
+                for row in res:
+                    session.query(db.Channel_Data).filter(db.Channel_Data.id == row[0]).delete()
+            session.commit()
 
     def load(self):
 
@@ -178,6 +202,11 @@ class EnvDaq3i:
         self.init_logger()
         logging.info("daq-3i Starting... Init DB...")
         self.init_db()
+
+        if self.action_clear_history:
+            self.process_history()
+            self.quit()
+
         self.prep_daq_status()
         self.load_buses()
         # db.create_tables(env.engine)
@@ -187,8 +216,8 @@ class EnvDaq3i:
         # write status - 1 = Running
         self.daq_stat.update_parameter(PULSE_PARAMETER, daq_status.STATUS_RUNNING)
 
-    def quit_err(self):
-        exit(-1)
+    def quit(self, code=0):
+        exit(0)
 
 """
 Main code entry
