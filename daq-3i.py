@@ -8,7 +8,8 @@ import configparser
 import logging
 import datetime
 import daq_status
-
+import sys
+from CmdArgParse import process_args
 
 """
 EnvDaq3i -- Main application App
@@ -30,9 +31,14 @@ class EnvDaq3i:
         self.buses = []
         self.pulse_timer = 0
 
+        self.l_filename = None
+        self.l_level = logging.INFO
+        self.conf_file = "config.ini"
+        self.action_clear_history = False
+
     def read_conf(self):
         config = configparser.ConfigParser()
-        config.read('config.ini')
+        config.read(self.conf_file)
         self.conf = config
 
     def init_db(self):
@@ -50,11 +56,8 @@ class EnvDaq3i:
 
     def init_logger(self):
         # Configure Logger
-        l_filename = None #"daq-3i.log" # None
-        l_filename = None  # "daq-3i.log" #
-        l_level = logging.INFO
         FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
-        logging.basicConfig(format=FORMAT, filename=l_filename, level=l_level)
+        logging.basicConfig(format=FORMAT, filename=self.l_filename, level=self.l_level)
 
 
     def prep_daq_status(self):
@@ -146,10 +149,64 @@ class EnvDaq3i:
             self.pulse_timer = 0
             self.daq_stat.update_parameter(PULSE_PARAMETER, 1)
 
+
+    def process_cmd_line_args(self):
+        # Process command line arguments
+        if len(sys.argv) >= 1:
+            (switches, flags) = process_args(sys.argv)
+            for i in switches:
+                if i[0] == "-c":
+                    self.conf_file = str(i[1])
+                elif i[0] == "-L":
+                    if i[1].strip().upper() == "DEBUG":
+                        self.l_level = logging.DEBUG
+                elif i[0] == "-LF":
+                    self.l_filename = i[1]
+                else:
+                    logging.critical("Error : Unknown command line switch " + i[0])
+                    self.quit(-1)
+            for i in flags:
+                if "CLEAR_HISTORY" == i.strip().upper():
+                    self.action_clear_history = True
+                else:
+                    logging.critical("Error : Unknown command line flag " + i)
+                    self.quit(-1)
+
+    def process_history(self):
+        # start seperate thread to delete old history files
+        #
+        # count = SELECT COUNT(id) FROM Channel_Data WHERE Channel_id = Channel
+
+        # DELETE FROM Channel_Data WHERE id IN (SELECT id FROM Channel_Data WHERE Channel_id = Channel ORDER BY id ASC LIMIT to_del)
+
+        session = self.Session()
+
+        # Get All Channels
+        all_chl = session.query(db.Channels).all()
+
+        for chl in all_chl:
+            count = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).count()
+            history_len = session.query(db.Channels).filter(db.Channels.id == chl.id).one().history_len
+            to_del = count - history_len
+            print("Channel %s : History Len: %d." % (chl.name, history_len))
+            if to_del > 0:
+                print("To delete %d of a total of %d records." % (to_del, count))
+                res = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).order_by(db.Channel_Data.id.asc()).limit(to_del)
+                for row in res:
+                    session.query(db.Channel_Data).filter(db.Channel_Data.id == row[0]).delete()
+            session.commit()
+
     def load(self):
+
+        self.process_cmd_line_args()
         self.init_logger()
         logging.info("daq-3i Starting... Init DB...")
         self.init_db()
+
+        if self.action_clear_history:
+            self.process_history()
+            self.quit()
+
         self.prep_daq_status()
         self.load_buses()
         # db.create_tables(env.engine)
@@ -159,6 +216,8 @@ class EnvDaq3i:
         # write status - 1 = Running
         self.daq_stat.update_parameter(PULSE_PARAMETER, daq_status.STATUS_RUNNING)
 
+    def quit(self, code=0):
+        exit(0)
 
 """
 Main code entry
@@ -166,6 +225,5 @@ Main code entry
 
 env = EnvDaq3i()
 env.load()
-env.loop()
-
 logging.info("Starting data acquisition loop...")
+env.loop()
