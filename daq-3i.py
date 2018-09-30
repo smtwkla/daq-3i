@@ -21,7 +21,7 @@ PULSE_SECONDS = 15
 PULSE_PARAMETER = "daq-3i"
 TRUNC_HIST_INTERVAL = 15
 BUS_STALL_COUNT = 5
-BUS_STALL_COOLING = 3
+BUS_STALL_COOLING = 3.0
 
 class EnvDaq3i:
 
@@ -103,20 +103,20 @@ class EnvDaq3i:
 
         bus1 = None
 
-        for bus in buses:
-            logging.info(f"Loading Bus {bus.name} with protocol {bus.protocol}...")
-            logging.info(f"{bus.address}:{bus.port}, {bus.timeout}")
+        for bus_rec in buses:
+            logging.info(f"Loading Bus {bus_rec.name} with protocol {bus_rec.protocol}...")
+            logging.info(f"{bus_rec.address}:{bus_rec.port}, {bus_rec.timeout}")
 
-            if bus.protocol == Bus.MODBUSTCP_PROTOCOL:
-                bus1 = Bus.ModbusCon(bus.address, bus.port, bus.timeout, bus.protocol)
+            if bus_rec.protocol == Bus.MODBUSTCP_PROTOCOL:
+                bus1 = Bus.ModbusCon(bus_rec.name, bus_rec.address, bus_rec.port, bus_rec.timeout, bus_rec.protocol)
 
             self.buses.append(bus1)
 
             # Find channels for the current bus
-            channels = bus_session.query(db.Channels).filter_by(bus_id=bus.id).filter_by(enabled=True).all()
+            channels = bus_session.query(db.Channels).filter_by(bus_id=bus_rec.id).filter_by(enabled=True).all()
 
             for chl in channels:
-                logging.info(f"Loading {chl.name} on bus {bus.id}...")
+                logging.info(f"Loading {chl.name} on bus {bus_rec.id}...")
 
                 if chl.conversion_id == 0 or chl.conversion_id is None:
                     conv_exp = None
@@ -127,7 +127,7 @@ class EnvDaq3i:
                                   chl.func_code,
                                   conv_exp, chl.format_code)
 
-            logging.info(f"Bus {bus.name} has {len(bus1.channels)} channels.")
+            logging.info(f"Bus {bus_rec.name} has {len(bus1.channels)} channels.")
 
         bus_session.close()
 
@@ -221,7 +221,8 @@ class EnvDaq3i:
                     # we missed the bus already, probably there is an error. Delay next acq by 5 seconds
                     stall_count += 1
                     if stall_count > BUS_STALL_COUNT:
-                        print("thread %d for %s elapsed %3.9f. Cooling off..." % (bus_index, our_bus.host, elapsed))
+                        print("Bus %s elapsed %3.9f, appears stalled. Cooling off for %3.4f seconds." % \
+                              (our_bus.name, elapsed, BUS_STALL_COOLING))
                         time.sleep(BUS_STALL_COOLING)
                         stall_count = 0
 

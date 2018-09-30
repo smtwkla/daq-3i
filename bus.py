@@ -56,7 +56,8 @@ BusCon - Generic Connection Class representing a bus
 
 class BusCon:
 
-    def __init__(self, host, port, timeout, protocol):
+    def __init__(self, name, host, port, timeout, protocol):
+        self.name = name
         self.host = host
         self.port = port
         self.timeout = timeout

@@ -26,6 +26,7 @@ class Channels(Base):
     def __repr__(self):
         return self.name
 
+
 class Buses(Base):
     __tablename__ = 'buses'
     id = Column(Integer, primary_key=True)
