@@ -28,13 +28,16 @@ class EnvDaq3i:
         self.conf = None
         self.engine = None
         self.Session = None
+
         self.daq_stat = None
         self.buses = []
         self.pulse_timer = 0
+
         self.stopping = False
 
         self.l_filename = None
         self.l_level = logging.INFO
+
         self.conf_file = "config.ini"
         self.action_clear_history = False
 
@@ -231,25 +234,6 @@ class EnvDaq3i:
             if not self.stopping:
                 time.sleep(0.1)
 
-    def loop(self):
-
-        # Loop Through
-        while True:
-            # Tick all buses
-            last_tick = datetime.datetime.now()
-
-            self.acquire()
-            self.persist()
-            self.pulse()
-
-            # time_to_sleep = 1 second  - (now - last_tick)
-            elapsed = (datetime.datetime.now() - last_tick).total_seconds()
-
-            if elapsed <= 1:
-                time.sleep(1 - elapsed)
-            else:
-                pass  # we missed the bus already, lets not wait.
-
     def quit(self, code=0):
         exit(0)
 
@@ -278,5 +262,3 @@ persist.join()
 
 logging.info("Waiting for acquire thread to quit...")
 acq.join()
-
-#env.loop()
