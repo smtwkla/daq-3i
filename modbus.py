@@ -35,7 +35,7 @@ ModbusMixin - Mixin for Modbus specific functionality
 
 class ModbusMixin:
     def read_register(self, chl):
-        logging.debug(f"Reading {chl.device_id}")
+        print(f"Reading {chl.name}")
 
         ret = buscommon.ReadResponse()
 
