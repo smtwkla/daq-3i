@@ -18,6 +18,7 @@ EnvDaq3i -- Main application App
 
 PULSE_SECONDS = 15
 PULSE_PARAMETER = "daq-3i"
+TRUNC_HIST_INTERVAL = 15
 
 
 class EnvDaq3i:
@@ -39,7 +40,7 @@ class EnvDaq3i:
         self.l_level = logging.INFO
 
         self.conf_file = "config.ini"
-        self.action_clear_history = False
+        self.action_clear_history = True
 
     def read_conf(self):
         config = configparser.ConfigParser()
@@ -133,35 +134,51 @@ class EnvDaq3i:
                     logging.critical("Error : Unknown command line switch " + i[0])
                     self.quit(-1)
             for i in flags:
-                if "CLEAR_HISTORY" == i.strip().upper():
-                    self.action_clear_history = True
+                if "NO_TRUNC_HISTORY" == i.strip().upper():
+                    self.action_clear_history = False
                 else:
                     logging.critical("Error : Unknown command line flag " + i)
                     self.quit(-1)
 
-    def process_history(self):
-        # start seperate thread to delete old history files
+    def trunc_history(self):
+        # Separate thread to delete old history records
         #
         # count = SELECT COUNT(id) FROM Channel_Data WHERE Channel_id = Channel
-
+        # must replace this code with simple, single SQL command
         # DELETE FROM Channel_Data WHERE id IN (SELECT id FROM Channel_Data WHERE Channel_id = Channel ORDER BY id ASC LIMIT to_del)
 
-        session = self.Session()
+        while not self.stopping:
 
-        # Get All Channels
-        all_chl = session.query(db.Channels).all()
+            # Sleep 10 times of 0.1 sec for every TRUNC_HIST_INTERVAL second, checking for stopping flag
+            for i in range(0, TRUNC_HIST_INTERVAL * 10):
+                if self.stopping:
+                    break
+                time.sleep(.1)
 
-        for chl in all_chl:
-            count = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).count()
-            history_len = session.query(db.Channels).filter(db.Channels.id == chl.id).one().history_len
-            to_del = count - history_len
-            print("Channel %s : History Len: %d." % (chl.name, history_len))
-            if to_del > 0:
-                print("To delete %d of a total of %d records." % (to_del, count))
-                res = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).order_by(db.Channel_Data.id.asc()).limit(to_del)
-                for row in res:
-                    session.query(db.Channel_Data).filter(db.Channel_Data.id == row[0]).delete()
-            session.commit()
+            session = self.Session()
+
+            # Get All Channels
+            all_chl = session.query(db.Channels).all()
+
+            for chl in all_chl:
+
+                if self.stopping:
+                    break
+
+                count = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).count()
+                history_len = session.query(db.Channels).filter(db.Channels.id == chl.id).one().history_len
+                to_del = count - history_len
+                logging.debug("Channel %s : History Len: %d." % (chl.name, history_len))
+                if to_del > 0 and not self.stopping:
+                    logging.debug("To delete %d of a total of %d records." % (to_del, count))
+                    res = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).order_by(db.Channel_Data.id.asc()).limit(to_del)
+                    for row in res:
+                        session.query(db.Channel_Data).filter(db.Channel_Data.id == row[0]).delete()
+                        if self.stopping:
+                            break
+                        time.sleep(0.01)
+                    session.commit()
+            time.sleep(0.1)
 
     def load(self):
 
@@ -169,10 +186,6 @@ class EnvDaq3i:
         self.init_logger()
         logging.info("daq-3i Starting... Init DB...")
         self.init_db()
-
-        if self.action_clear_history:
-            self.process_history()
-            self.quit()
 
         self.prep_daq_status()
         self.load_buses()
@@ -248,8 +261,14 @@ logging.info("Starting data acquisition loop...")
 acq = Thread(target=env.acquire)
 persist = Thread(target=env.persist)
 
+if env.action_clear_history:
+    trunc_history = Thread(target=env.trunc_history)
+
 acq.start()
 persist.start()
+
+if env.action_clear_history:
+    trunc_history.start()
 
 print("Press enter key to quit.")
 x = input("")
@@ -262,3 +281,7 @@ persist.join()
 
 logging.info("Waiting for acquire thread to quit...")
 acq.join()
+
+logging.info("Waiting for truncate thread to quit...")
+trunc_history.join()
+
