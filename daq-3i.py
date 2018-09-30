@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 import bus as Bus
+from threading import Thread
 import time
 import configparser
 import logging
@@ -30,6 +31,7 @@ class EnvDaq3i:
         self.daq_stat = None
         self.buses = []
         self.pulse_timer = 0
+        self.stopping = False
 
         self.l_filename = None
         self.l_level = logging.INFO
@@ -102,45 +104,7 @@ class EnvDaq3i:
 
         bus_session.close()
 
-    def loop(self):
 
-        # Loop Through
-        while True:
-            # Tick all buses
-            last_tick = datetime.datetime.now()
-
-            for bus in self.buses:
-                bus.timer_tick()
-
-            # Check all channels for dirty data
-            for bus in self.buses:
-                for ch in bus.channels:
-                    if ch.is_dirty:
-                        session = self.Session()
-                        try:
-                            data = db.Channel_Data()
-                            data.channel_id = ch.id
-                            data.ts = ch.last_read_at
-                            data.value = ch.value
-                            print(data.value)
-                            session.add(data)
-                            session.commit()
-                            session.close()
-                            ch.is_dirty = False
-                            self.daq_stat.update_parameter("CHL: %d" % ch.id, daq_status.STATUS_OK)
-
-                        except SQLAlchemyError as e:
-                            session.rollback()
-                            logging.critical("Error: {0}".format(e))
-            self.pulse()
-
-            # time_to_sleep = 1 second  - (now - last_tick)
-            elapsed = (datetime.datetime.now() - last_tick).total_seconds()
-
-            if elapsed <= 1:
-                time.sleep(1 - elapsed)
-            else:
-                pass  # we missed the bus already, lets not wait.
 
     def pulse(self):
 
@@ -216,6 +180,76 @@ class EnvDaq3i:
         # write status - 1 = Running
         self.daq_stat.update_parameter(PULSE_PARAMETER, daq_status.STATUS_RUNNING)
 
+    def acquire(self):
+        while not self.stopping:
+            # Tick all buses
+            last_tick = datetime.datetime.now()
+
+            # Acquire data
+            for bus in self.buses:
+                if self.stopping:
+                    break
+                bus.timer_tick()
+
+            # time_to_sleep = 1 second  - (now - last_tick)
+            elapsed = (datetime.datetime.now() - last_tick).total_seconds()
+
+            if not self.stopping:
+                if elapsed <= 1:
+                    time.sleep(1 - elapsed)
+                else:
+                    pass  # we missed the bus already, lets not wait.
+
+    def persist(self):
+
+        while not self.stopping:
+
+            # Check all channels for dirty data
+            for bus in self.buses:
+                for ch in bus.channels:
+                    if self.stopping:
+                        break
+                    if ch.is_dirty:
+                        session = self.Session()
+                        try:
+                            data = db.Channel_Data()
+                            data.channel_id = ch.id
+                            data.ts = ch.last_read_at
+                            data.value = ch.value
+                            print(data.value)
+                            session.add(data)
+                            session.commit()
+                            session.close()
+                            ch.is_dirty = False
+                            self.daq_stat.update_parameter("CHL: %d" % ch.id, daq_status.STATUS_OK)
+
+                        except SQLAlchemyError as e:
+                            session.rollback()
+                            logging.critical("Error: {0}".format(e))
+                if self.stopping:
+                    break
+            if not self.stopping:
+                time.sleep(0.1)
+
+    def loop(self):
+
+        # Loop Through
+        while True:
+            # Tick all buses
+            last_tick = datetime.datetime.now()
+
+            self.acquire()
+            self.persist()
+            self.pulse()
+
+            # time_to_sleep = 1 second  - (now - last_tick)
+            elapsed = (datetime.datetime.now() - last_tick).total_seconds()
+
+            if elapsed <= 1:
+                time.sleep(1 - elapsed)
+            else:
+                pass  # we missed the bus already, lets not wait.
+
     def quit(self, code=0):
         exit(0)
 
@@ -226,4 +260,23 @@ Main code entry
 env = EnvDaq3i()
 env.load()
 logging.info("Starting data acquisition loop...")
-env.loop()
+
+acq = Thread(target=env.acquire)
+persist = Thread(target=env.persist)
+
+acq.start()
+persist.start()
+
+print("Press enter key to quit.")
+x = input("")
+
+logging.info("Signalling quit...")
+env.stopping = True
+
+logging.info("Waiting for persist thread to quit...")
+persist.join()
+
+logging.info("Waiting for acquire thread to quit...")
+acq.join()
+
+#env.loop()
