@@ -20,7 +20,8 @@ EnvDaq3i -- Main application App
 PULSE_SECONDS = 15
 PULSE_PARAMETER = "daq-3i"
 TRUNC_HIST_INTERVAL = 15
-
+BUS_STALL_COUNT = 5
+BUS_STALL_COOLING = 3
 
 class EnvDaq3i:
 
@@ -199,6 +200,7 @@ class EnvDaq3i:
     def acquire(self, bus_index):
 
         our_bus = self.buses[bus_index]
+        stall_count = 0
 
         while not self.stopping:
 
@@ -214,8 +216,14 @@ class EnvDaq3i:
             if not self.stopping:
                 if elapsed <= 1:
                     time.sleep(1 - elapsed)
+                    stall_count = 0
                 else:
-                    pass  # we missed the bus already, lets not wait.
+                    # we missed the bus already, probably there is an error. Delay next acq by 5 seconds
+                    stall_count += 1
+                    if stall_count > BUS_STALL_COUNT:
+                        print("thread %d for %s elapsed %3.9f. Cooling off..." % (bus_index, our_bus.host, elapsed))
+                        time.sleep(BUS_STALL_COOLING)
+                        stall_count = 0
 
     def persist(self):
 
