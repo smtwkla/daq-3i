@@ -9,6 +9,7 @@ import configparser
 import logging
 import datetime
 import daq_status
+import signal
 import sys
 from CmdArgParse import process_args
 
@@ -35,6 +36,7 @@ class EnvDaq3i:
         self.pulse_timer = 0
 
         self.stopping = False
+        self.print_live = False
 
         self.l_filename = None
         self.l_level = logging.INFO
@@ -108,15 +110,15 @@ class EnvDaq3i:
 
         bus_session.close()
 
-
-
     def pulse(self):
 
-        self.pulse_timer += 1
-        if self.pulse_timer >= PULSE_SECONDS:
-            self.pulse_timer = 0
+        while not self.stopping:
+            # Sleep 10 times of 0.1 sec for every PULSE_SECONDS second, checking for stopping flag
+            for i in range(0, PULSE_SECONDS * 10):
+                if self.stopping:
+                    break
+                time.sleep(.1)
             self.daq_stat.update_parameter(PULSE_PARAMETER, 1)
-
 
     def process_cmd_line_args(self):
         # Process command line arguments
@@ -136,6 +138,8 @@ class EnvDaq3i:
             for i in flags:
                 if "NO_TRUNC_HISTORY" == i.strip().upper():
                     self.action_clear_history = False
+                if "PRINT_LIVE" == i.strip().upper():
+                    self.print_live = True
                 else:
                     logging.critical("Error : Unknown command line flag " + i)
                     self.quit(-1)
@@ -198,6 +202,7 @@ class EnvDaq3i:
 
     def acquire(self):
         while not self.stopping:
+
             # Tick all buses
             last_tick = datetime.datetime.now()
 
@@ -232,7 +237,8 @@ class EnvDaq3i:
                             data.channel_id = ch.id
                             data.ts = ch.last_read_at
                             data.value = ch.value
-                            print(data.value)
+                            if self.print_live:
+                                print(f"{ch.name}= {data.value}")
                             session.add(data)
                             session.commit()
                             session.close()
@@ -247,8 +253,19 @@ class EnvDaq3i:
             if not self.stopping:
                 time.sleep(0.1)
 
+    def sigterm_handler(self, _signo, _stack_frame):
+        logging.info("Signalling quit...")
+        self.stopping = True
+
     def quit(self, code=0):
         exit(0)
+
+"""
+SIGTERM Handler function
+"""
+
+
+
 
 """
 Main code entry
@@ -260,21 +277,31 @@ logging.info("Starting data acquisition loop...")
 
 acq = Thread(target=env.acquire)
 persist = Thread(target=env.persist)
+pulse = Thread(target=env.pulse)
 
 if env.action_clear_history:
     trunc_history = Thread(target=env.trunc_history)
 
 acq.start()
 persist.start()
+pulse.start()
 
 if env.action_clear_history:
     trunc_history.start()
 
-print("Press enter key to quit.")
-x = input("")
+signal.signal(signal.SIGTERM, env.sigterm_handler)
+signal.signal(signal.SIGINT, env.sigterm_handler)
 
-logging.info("Signalling quit...")
-env.stopping = True
+print("Use SIGTERM, SIGINT or Press ^C to quit.")
+
+while True:
+    if env.stopping:
+        break
+    else:
+        time.sleep(1)
+
+logging.info("Waiting for pulse thread to quit...")
+pulse.join()
 
 logging.info("Waiting for persist thread to quit...")
 persist.join()
@@ -284,4 +311,6 @@ acq.join()
 
 logging.info("Waiting for truncate thread to quit...")
 trunc_history.join()
+
+env.quit()
 
