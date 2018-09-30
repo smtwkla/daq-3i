@@ -44,6 +44,8 @@ class EnvDaq3i:
 
         self.conf_file = "config.ini"
         self.action_clear_history = True
+        self.create_table = False
+        self.single_action = False
 
     def process_cmd_line_args(self):
         # Process command line arguments
@@ -61,10 +63,16 @@ class EnvDaq3i:
                     logging.critical("Error : Unknown command line switch " + i[0])
                     self.quit(-1)
             for i in flags:
-                if "NO_TRUNC_HISTORY" == i.strip().upper():
+                if "NO_TRUNC" == i.strip().upper():
                     self.action_clear_history = False
-                if "PRINT_LIVE" == i.strip().upper():
+                elif "TRUNC_ONLY" == i.strip().upper():
+                    self.action_clear_history = True
+                    self.single_action = True
+                elif "PRINT_LIVE" == i.strip().upper():
                     self.print_live = True
+                elif "CREATE_TABLE" == i.strip().upper():
+                    self.create_table = True
+                    self.single_action = True
                 else:
                     logging.critical("Error : Unknown command line flag " + i)
                     self.quit(-1)
@@ -187,7 +195,6 @@ class EnvDaq3i:
         self.init_logger()
         logging.info("daq-3i Starting... Init DB...")
         self.init_db()
-
         self.prep_daq_status()
         self.load_buses()
         # db.create_tables(env.engine)
@@ -274,30 +281,45 @@ Main code entry
 
 env = EnvDaq3i()
 env.load()
-logging.info("Starting data acquisition loop...")
 
 acq_threads = []
-
-for num, bus in enumerate(env.buses):
-    logging.info("Starting acquisition thread for bus %d..." % num)
-    bus_thread = Thread(target=env.acquire, args=(num,))
-    bus_thread.start()
-    acq_threads.append(bus_thread)
-
 persist = Thread(target=env.persist)
-persist.start()
-
 pulse = Thread(target=env.pulse)
-pulse.start()
 
 if env.action_clear_history:
+    logging.info("Starting Truncate Thread...")
     trunc_history = Thread(target=env.trunc_history)
     trunc_history.start()
 
 signal.signal(signal.SIGTERM, env.sigterm_handler)
 signal.signal(signal.SIGINT, env.sigterm_handler)
-
 print("Use SIGTERM, SIGINT or Press ^C to quit.")
+
+if env.single_action:
+
+    if env.create_table:
+        logging.info("Starting in Create Table Mode...")
+        # Code for creating tables
+        pass
+        #db.create_all()
+        # Quit
+        env.stopping = True
+    if env.action_clear_history and not env.create_table:
+        logging.info("Starting in Truncate History Mode...")
+        pass
+
+
+else:
+    logging.info("Starting in data acquisition mode...")
+
+    for num, bus in enumerate(env.buses):
+        logging.info("Starting acquisition thread for bus %d..." % num)
+        bus_thread = Thread(target=env.acquire, args=(num,))
+        bus_thread.start()
+        acq_threads.append(bus_thread)
+
+    persist.start()
+    pulse.start()
 
 while True:
     if env.stopping:
@@ -305,18 +327,22 @@ while True:
     else:
         time.sleep(1)
 
-logging.info("Waiting for pulse thread to quit...")
-pulse.join()
+if pulse.is_alive():
+    logging.info("Waiting for pulse thread to quit...")
+    pulse.join()
 
-logging.info("Waiting for persist thread to quit...")
-persist.join()
+if persist.is_alive():
+    logging.info("Waiting for persist thread to quit...")
+    persist.join()
 
 logging.info("Waiting for acquire threads to quit...")
 for a_thread in acq_threads:
-    a_thread.join()
+    if a_thread.is_alive():
+        a_thread.join()
 
 logging.info("Waiting for truncate thread to quit...")
-trunc_history.join()
+if trunc_history.is_alive():
+    trunc_history.join()
 
 env.quit()
 
