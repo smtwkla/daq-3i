@@ -44,10 +44,34 @@ class EnvDaq3i:
         self.conf_file = "config.ini"
         self.action_clear_history = True
 
-    def read_conf(self):
-        config = configparser.ConfigParser()
-        config.read(self.conf_file)
-        self.conf = config
+    def process_cmd_line_args(self):
+        # Process command line arguments
+        if len(sys.argv) >= 1:
+            (switches, flags) = process_args(sys.argv)
+            for i in switches:
+                if i[0] == "-c":
+                    self.conf_file = str(i[1])
+                elif i[0] == "-L":
+                    if i[1].strip().upper() == "DEBUG":
+                        self.l_level = logging.DEBUG
+                elif i[0] == "-LF":
+                    self.l_filename = i[1]
+                else:
+                    logging.critical("Error : Unknown command line switch " + i[0])
+                    self.quit(-1)
+            for i in flags:
+                if "NO_TRUNC_HISTORY" == i.strip().upper():
+                    self.action_clear_history = False
+                if "PRINT_LIVE" == i.strip().upper():
+                    self.print_live = True
+                else:
+                    logging.critical("Error : Unknown command line flag " + i)
+                    self.quit(-1)
+
+    def init_logger(self):
+        # Configure Logger
+        FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
+        logging.basicConfig(format=FORMAT, filename=self.l_filename, level=self.l_level)
 
     def init_db(self):
         self.read_conf()
@@ -59,14 +83,10 @@ class EnvDaq3i:
 
         self.Session = sessionmaker(bind=self.engine)
 
-    def write_channel_data(self):
-        pass
-
-    def init_logger(self):
-        # Configure Logger
-        FORMAT = '%(asctime)-15s : %(levelname)s : %(module)s : %(message)s'
-        logging.basicConfig(format=FORMAT, filename=self.l_filename, level=self.l_level)
-
+    def read_conf(self):
+        config = configparser.ConfigParser()
+        config.read(self.conf_file)
+        self.conf = config
 
     def prep_daq_status(self):
 
@@ -119,30 +139,6 @@ class EnvDaq3i:
                     break
                 time.sleep(.1)
             self.daq_stat.update_parameter(PULSE_PARAMETER, 1)
-
-    def process_cmd_line_args(self):
-        # Process command line arguments
-        if len(sys.argv) >= 1:
-            (switches, flags) = process_args(sys.argv)
-            for i in switches:
-                if i[0] == "-c":
-                    self.conf_file = str(i[1])
-                elif i[0] == "-L":
-                    if i[1].strip().upper() == "DEBUG":
-                        self.l_level = logging.DEBUG
-                elif i[0] == "-LF":
-                    self.l_filename = i[1]
-                else:
-                    logging.critical("Error : Unknown command line switch " + i[0])
-                    self.quit(-1)
-            for i in flags:
-                if "NO_TRUNC_HISTORY" == i.strip().upper():
-                    self.action_clear_history = False
-                if "PRINT_LIVE" == i.strip().upper():
-                    self.print_live = True
-                else:
-                    logging.critical("Error : Unknown command line flag " + i)
-                    self.quit(-1)
 
     def trunc_history(self):
         # Separate thread to delete old history records
@@ -200,17 +196,17 @@ class EnvDaq3i:
         # write status - 1 = Running
         self.daq_stat.update_parameter(PULSE_PARAMETER, daq_status.STATUS_RUNNING)
 
-    def acquire(self):
+    def acquire(self, bus_index):
+
+        our_bus = self.buses[bus_index]
+
         while not self.stopping:
 
             # Tick all buses
             last_tick = datetime.datetime.now()
 
             # Acquire data
-            for bus in self.buses:
-                if self.stopping:
-                    break
-                bus.timer_tick()
+            our_bus.timer_tick()
 
             # time_to_sleep = 1 second  - (now - last_tick)
             elapsed = (datetime.datetime.now() - last_tick).total_seconds()
@@ -252,19 +248,15 @@ class EnvDaq3i:
                     break
             if not self.stopping:
                 time.sleep(0.1)
-
+    """
+    SIGTERM Handler Method
+    """
     def sigterm_handler(self, _signo, _stack_frame):
         logging.info("Signalling quit...")
         self.stopping = True
 
     def quit(self, code=0):
         exit(0)
-
-"""
-SIGTERM Handler function
-"""
-
-
 
 
 """
@@ -275,18 +267,22 @@ env = EnvDaq3i()
 env.load()
 logging.info("Starting data acquisition loop...")
 
-acq = Thread(target=env.acquire)
+acq_threads = []
+
+for num, bus in enumerate(env.buses):
+    logging.info("Starting acquisition thread for bus %d..." % num)
+    bus_thread = Thread(target=env.acquire, args=(num,))
+    bus_thread.start()
+    acq_threads.append(bus_thread)
+
 persist = Thread(target=env.persist)
-pulse = Thread(target=env.pulse)
-
-if env.action_clear_history:
-    trunc_history = Thread(target=env.trunc_history)
-
-acq.start()
 persist.start()
+
+pulse = Thread(target=env.pulse)
 pulse.start()
 
 if env.action_clear_history:
+    trunc_history = Thread(target=env.trunc_history)
     trunc_history.start()
 
 signal.signal(signal.SIGTERM, env.sigterm_handler)
@@ -306,8 +302,9 @@ pulse.join()
 logging.info("Waiting for persist thread to quit...")
 persist.join()
 
-logging.info("Waiting for acquire thread to quit...")
-acq.join()
+logging.info("Waiting for acquire threads to quit...")
+for a_thread in acq_threads:
+    a_thread.join()
 
 logging.info("Waiting for truncate thread to quit...")
 trunc_history.join()
