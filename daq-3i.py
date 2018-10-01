@@ -228,8 +228,8 @@ class EnvDaq3i:
                     # we missed the bus already, probably there is an error. Delay next acq by 5 seconds
                     stall_count += 1
                     if stall_count > BUS_STALL_COUNT:
-                        print("Bus %s elapsed %3.9f, appears stalled. Cooling off for %3.4f seconds." % \
-                              (our_bus.name, elapsed, BUS_STALL_COOLING))
+                        logging.info("Bus %s elapsed %3.9f, appears stalled. Cooling off for %3.4f seconds." %
+                                     (our_bus.name, elapsed, BUS_STALL_COOLING))
                         time.sleep(BUS_STALL_COOLING)
                         stall_count = 0
 
