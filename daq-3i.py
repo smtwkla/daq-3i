@@ -20,6 +20,7 @@ EnvDaq3i -- Main application App
 PULSE_SECONDS = 15
 PULSE_PARAMETER = "daq-3i"
 TRUNC_HIST_INTERVAL = 15
+TRUNC_MAX_BATCH = 100
 BUS_STALL_COUNT = 5
 BUS_STALL_COOLING = 3.0
 
@@ -196,7 +197,12 @@ CREATE-TABLE: Not yet implemented. To be used for creation of tables.
 
                 count = session.query(db.Channel_Data.id).filter(db.Channel_Data.channel_id == chl.id).count()
                 history_len = session.query(db.Channels).filter(db.Channels.id == chl.id).one().history_len
-                to_del = count - history_len
+
+                to_del = (count - history_len)
+
+                if to_del > TRUNC_MAX_BATCH:
+                    to_del = TRUNC_MAX_BATCH
+
                 logging.debug("Channel %s : History Len: %d." % (chl.name, history_len))
                 if to_del > 0 and not self.stopping:
                     logging.debug("To delete %d of a total of %d records." % (to_del, count))
