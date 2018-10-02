@@ -59,18 +59,38 @@ class EnvDaq3i:
                         self.l_level = logging.DEBUG
                 elif i[0] == "-LF":
                     self.l_filename = i[1]
+                elif i[0].upper() == "-H":
+                    print("""
+
+daq-3i - Data Acquisition software for MODBUS & similar protocols. 
+
+Visit http://github.com/smtwkla/daq-3i for more info.
+
+Requires: Python 3.6+
+
+usage: python daq-3i [-c config-file] [-L DEBUG] [-LF log-file] [-h] [PRINT-LIVE] [NO-TRUNC] [ TRUNC-ONLY | CREATE-TABLE] 
+
+PRINT-LIVE : Prints live acquisition data on screen.
+NO-TRUNC : Do not truncate channel data that is beyond its specified history length.
+
+Single action modes:
+
+TRUNC-ONLY: Do not acquire data, just run truncate thread for deleting channel data.
+CREATE-TABLE: Not yet implemented. To be used for creation of tables.  
+                    """)
+                    self.quit()
                 else:
                     logging.critical("Error : Unknown command line switch " + i[0])
                     self.quit(-1)
             for i in flags:
-                if "NO_TRUNC" == i.strip().upper():
+                if "NO-TRUNC" == i.strip().upper():
                     self.action_clear_history = False
-                elif "TRUNC_ONLY" == i.strip().upper():
+                elif "TRUNC-ONLY" == i.strip().upper():
                     self.action_clear_history = True
                     self.single_action = True
-                elif "PRINT_LIVE" == i.strip().upper():
+                elif "PRINT-LIVE" == i.strip().upper():
                     self.print_live = True
-                elif "CREATE_TABLE" == i.strip().upper():
+                elif "CREATE-TABLE" == i.strip().upper():
                     self.create_table = True
                     self.single_action = True
                 else:
