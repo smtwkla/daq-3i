@@ -134,7 +134,7 @@ CREATE-TABLE: Not yet implemented. To be used for creation of tables.
 
         for bus_rec in buses:
             logging.info(f"Loading Bus {bus_rec.name} with protocol {bus_rec.protocol}...")
-            logging.info(f"{bus_rec.address}:{bus_rec.port}, {bus_rec.timeout}")
+            logging.info(f"Address: {bus_rec.address}:{bus_rec.port}, timeout: {bus_rec.timeout}")
 
             if bus_rec.protocol == Bus.MODBUSTCP_PROTOCOL:
                 bus1 = Bus.ModbusCon(bus_rec.name, bus_rec.address, bus_rec.port, bus_rec.timeout, bus_rec.protocol)
@@ -370,5 +370,6 @@ logging.info("Waiting for truncate thread to quit...")
 if trunc_history.is_alive():
     trunc_history.join()
 
+logging.info("daq-3i quit.")
 env.quit()
 
