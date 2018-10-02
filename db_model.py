@@ -22,6 +22,7 @@ class Channels(Base):
     enabled = Column(Boolean, nullable=False)
     eng_unit = Column(String(15))
     history_len = Column(Integer, nullable=False, default=1)
+    long_name = Column(String(50))
 
     def __repr__(self):
         return self.name
