@@ -94,7 +94,7 @@ class BusCon:
         self.channels[chl].last_status = -1
 
         if res.result == -1:
-            logging.error(f"Error reading channel {chl.name}")
+            logging.error(f"Error reading channel {self.channels[chl].name}")
 
             if res.exception is not None:
                 logging.error(f"Exception: {res.exception.string} ")
