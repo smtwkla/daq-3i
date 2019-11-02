@@ -159,7 +159,8 @@ class ModbusMixin:
             # print("Reg 2 : %d" % res.response.registers[1])
 
         if chl.format == MODBUS_ABB_REAL32_S:
-            value = decoder.decode_16bit_int()
+
+            value = int(format(res.response.registers[1], "b").zfill(16) + format(res.response.registers[0], "b").zfill(16),2)
 
         # decoder.decode_bits()
         return value
